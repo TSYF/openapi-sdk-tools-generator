@@ -41,7 +41,8 @@ export function extractOperations(doc: OasDocument): OperationIR[] {
       for (const param of allParams) {
         if ("$ref" in param) continue; // swagger-parser should have bundled these
         const p = param as OpenAPIV3.ParameterObject;
-        const typeName = p.schema ? oasSchemaToTsType(p.schema) : "string";
+        const rawType = p.schema ? oasSchemaToTsType(p.schema) : "string";
+        const typeName = p.in === "query" && rawType === "unknown" ? "string" : rawType;
 
         if (p.in === "path") {
           pathParams.push({ name: p.name, typeName, required: true });
@@ -72,7 +73,8 @@ export function extractOperations(doc: OasDocument): OperationIR[] {
       const successResponse =
         operation.responses?.["200"] ??
         operation.responses?.["201"] ??
-        operation.responses?.["204"];
+        operation.responses?.["204"] ??
+        operation.responses?.["default"];
 
       if (successResponse && !("$ref" in successResponse)) {
         const content = (successResponse as OpenAPIV3.ResponseObject).content?.[

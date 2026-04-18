@@ -70,13 +70,11 @@ export function generateErrorsFile(groups: SdkGroupIR[]): string {
     }
   }
 
-  // Per-operation error type aliases
-  const emitted = new Set<string>();
+  // Per-operation error type aliases — scoped by group to avoid collisions
+  // when multiple groups share operationIds (e.g. every group has "getAll")
   for (const group of groups) {
     for (const op of group.operations) {
-      const aliasName = operationErrorTypeName(op.operationId);
-      if (emitted.has(aliasName)) continue;
-      emitted.add(aliasName);
+      const aliasName = operationErrorTypeName(op.operationId, group.className);
 
       const members = op.errorCodes
         .map((c) => codeToInterface.get(c))
@@ -97,9 +95,9 @@ export function generateErrorsFile(groups: SdkGroupIR[]): string {
  * e.g. 'usersController_findOne' → 'UsersControllerFindOneErrors'
  * e.g. 'findOne' → 'FindOneErrors'
  */
-export function operationErrorTypeName(operationId: string): string {
+export function operationErrorTypeName(operationId: string, groupClassName?: string): string {
   const pascal = operationId
     .replace(/[_-]+(.)/g, (_, c) => c.toUpperCase())
     .replace(/^(.)/, (_, c) => c.toUpperCase());
-  return pascal + "Errors";
+  return (groupClassName ?? "") + pascal + "Errors";
 }

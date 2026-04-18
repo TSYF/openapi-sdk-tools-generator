@@ -24,7 +24,7 @@ interface MethodSig {
   errorTypeName: string;
 }
 
-function buildMethodSig(op: OperationIR): MethodSig {
+function buildMethodSig(op: OperationIR, groupClassName: string): MethodSig {
   const sdkParams: string[] = [];
 
   // Path params first
@@ -34,21 +34,20 @@ function buildMethodSig(op: OperationIR): MethodSig {
 
   // Query params
   let hasQuery = false;
-  let queryParamName = "";
+  let queryOptsExpr = "";
   if (op.queryParams.length > 0) {
     hasQuery = true;
-    // If multiple query params, group them into an object
     if (op.queryParams.length === 1) {
       const p = op.queryParams[0];
       const opt = p.required ? "" : "?";
       sdkParams.push(`${p.name}${opt}: ${p.typeName}`);
-      queryParamName = p.name;
+      queryOptsExpr = `{ ${p.name} }`;
     } else {
       const fields = op.queryParams
         .map((p) => `${p.name}${p.required ? "" : "?"}: ${p.typeName}`)
         .join("; ");
       sdkParams.push(`query: { ${fields} }`);
-      queryParamName = "query";
+      queryOptsExpr = "query";
     }
   }
 
@@ -74,7 +73,7 @@ function buildMethodSig(op: OperationIR): MethodSig {
   // request opts
   const opts: string[] = [];
   if (hasBody) opts.push(`body`);
-  if (hasQuery) opts.push(`query: ${queryParamName}`);
+  if (hasQuery) opts.push(`query: ${queryOptsExpr}`);
   opts.push("headers");
 
   return {
@@ -84,7 +83,7 @@ function buildMethodSig(op: OperationIR): MethodSig {
     httpVerb: op.httpMethod,
     pathExpr: buildPathExpression(op.path),
     optsStr: `{ ${opts.join(", ")} }`,
-    errorTypeName: operationErrorTypeName(op.operationId),
+    errorTypeName: operationErrorTypeName(op.operationId, groupClassName),
   };
 }
 
@@ -105,11 +104,10 @@ export function generateSdkFile(group: SdkGroupIR, schemaNames: Set<string>): st
     if (op.responseSchema && isSchemaName(op.responseSchema, schemaNames)) {
       typeImports.add(op.responseSchema);
     }
-    errorTypeImports.add(operationErrorTypeName(op.operationId));
+    errorTypeImports.add(operationErrorTypeName(op.operationId, group.className));
   }
 
-  lines.push(`import { ResultAsync } from 'neverthrow';`);
-  lines.push(`import { SdkBase, type ClientOptions } from './base';`);
+  lines.push(`import { SdkBase, SdkResultAsync, type ClientOptions } from './base';`);
   if (typeImports.size > 0) {
     lines.push(
       `import type { ${[...typeImports].sort().join(", ")} } from '../interfaces';`,
@@ -122,7 +120,7 @@ export function generateSdkFile(group: SdkGroupIR, schemaNames: Set<string>): st
   }
   lines.push("");
 
-  const sigs = group.operations.map(buildMethodSig);
+  const sigs = group.operations.map((op) => buildMethodSig(op, group.className));
 
   // ── Promise class (throws on error)
   lines.push(`export class ${promiseClass} extends SdkBase {`);
@@ -148,7 +146,7 @@ export function generateSdkFile(group: SdkGroupIR, schemaNames: Set<string>): st
   for (const sig of sigs) {
     lines.push("");
     lines.push(
-      `  ${sig.operationId}(${sig.paramsStr}): ResultAsync<${sig.returnType}, ${sig.errorTypeName}> {`,
+      `  ${sig.operationId}(${sig.paramsStr}): SdkResultAsync<${sig.returnType}, ${sig.errorTypeName}> {`,
     );
     lines.push(
       `    return this.typedRequest<${sig.returnType}, ${sig.errorTypeName}>('${sig.httpVerb}', ${sig.pathExpr}, ${sig.optsStr});`,

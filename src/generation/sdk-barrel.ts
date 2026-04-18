@@ -13,6 +13,7 @@ export function generateSdkBarrel(
 
   lines.push(`export * from './errors';`);
   lines.push(`export { ${clientName}, ${clientName}Result, type ClientOptions } from './root';`);
+  lines.push(`export { SdkResultAsync } from './base';`);
 
   for (const group of groups) {
     const promiseName = tagToClientClassName(group.className);

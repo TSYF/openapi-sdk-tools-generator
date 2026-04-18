@@ -7,11 +7,14 @@ export function generateSdkBase(): string {
 import {
   FetchAdapter,
   parseServiceErrorGeneric,
+  SdkResultAsync,
   type HttpAdapter,
   type HttpRequestError,
   type ServiceError,
   type SdkErrorMapper,
 } from '@openapi-sdk-tools/core';
+
+export { SdkResultAsync };
 
 export interface ClientOptions {
   baseUrl: string;
@@ -21,15 +24,23 @@ export interface ClientOptions {
   errorMapper?: SdkErrorMapper;
   /** Headers merged into every request. */
   defaultHeaders?: Record<string, string>;
+  /** Property name on error objects used to dispatch exhaustive match handlers. Defaults to 'code'. */
+  errorDiscriminatorKey?: string;
+  /** API version to send with every request. */
+  apiVersion?: \`\$\{number\}\`;
+  /** How to transmit the version. 'header' sends x-api-version (default). 'path' prepends /version to every path. */
+  apiVersionStrategy?: 'header' | 'path';
 }
 
 export class SdkBase {
   private readonly _adapter: HttpAdapter;
   private readonly _errorMapper: SdkErrorMapper;
+  private readonly _discriminatorKey: string;
 
   constructor(protected readonly options: ClientOptions) {
     this._adapter = options.adapter ?? new FetchAdapter();
     this._errorMapper = options.errorMapper ?? parseServiceErrorGeneric;
+    this._discriminatorKey = options.errorDiscriminatorKey ?? 'code';
   }
 
   protected request<T>(
@@ -41,7 +52,8 @@ export class SdkBase {
       headers?: Record<string, string>;
     },
   ): ResultAsync<T, HttpRequestError> {
-    const url = \`\${this.options.baseUrl}\${path}\`;
+    const prefix = this.options.apiVersion ? \`/\${this.options.apiVersion}\` : '';
+    const url = \`\${this.options.baseUrl}\${prefix}\${path}\`;
     return this._adapter.request<T>({
       method,
       url,
@@ -62,9 +74,12 @@ export class SdkBase {
       query?: Record<string, string | number | boolean | undefined | null>;
       headers?: Record<string, string>;
     },
-  ): ResultAsync<T, E> {
-    return this.request<T>(method, path, opts).mapErr(
-      (e) => this._errorMapper(e) as E,
+  ): SdkResultAsync<T, E> {
+    return new SdkResultAsync(
+      this.request<T>(method, path, opts).mapErr(
+        (e) => this._errorMapper(e) as E,
+      ),
+      this._discriminatorKey,
     );
   }
 }

@@ -33,9 +33,19 @@ export function generateInterfaceFiles(
     else groups.set(key, [schema]);
   }
 
+  // Build name → file map for cross-file interface imports
+  const nameToFile = new Map<string, string>();
+  for (const [key, group] of groups.entries()) {
+    const fileName = `${toKebab(key)}.interfaces`;
+    for (const schema of group) {
+      nameToFile.set(schema.name, fileName);
+    }
+  }
+
   const outputs: InterfaceFileOutput[] = [];
 
   for (const [key, group] of groups.entries()) {
+    const thisFile = `${toKebab(key)}.interfaces`;
     const lines: string[] = [];
 
     // Collect all $ref-resolved names used in this file to know which
@@ -64,6 +74,22 @@ export function generateInterfaceFiles(
       );
       lines.push("");
     }
+
+    // Import interfaces from sibling files
+    const ifaceImportsByFile = new Map<string, string[]>();
+    for (const name of referencedNames) {
+      if (enumNames.has(name)) continue;
+      const file = nameToFile.get(name);
+      if (file && file !== thisFile) {
+        const existing = ifaceImportsByFile.get(file) ?? [];
+        existing.push(name);
+        ifaceImportsByFile.set(file, existing);
+      }
+    }
+    for (const [file, names] of [...ifaceImportsByFile.entries()].sort()) {
+      lines.push(`import type { ${names.sort().join(", ")} } from './${file}';`);
+    }
+    if (ifaceImportsByFile.size > 0) lines.push("");
 
     for (const schema of group) {
       if (schema.kind === "interface") {

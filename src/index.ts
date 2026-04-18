@@ -55,7 +55,7 @@ export async function generate(config: GeneratorConfig): Promise<void> {
   }
   fs.writeFileSync(
     path.join(enumsDir, "index.ts"),
-    enumBarrelExports.join("\n") + "\n",
+    enumBarrelExports.length > 0 ? enumBarrelExports.join("\n") + "\n" : "export {};\n",
     "utf-8",
   );
 
