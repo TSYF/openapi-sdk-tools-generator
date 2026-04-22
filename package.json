@@ -1,8 +1,9 @@
 {
   "name": "@openapi-sdk-tools/generator",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "OpenAPI spec to typed TypeScript SDK generator",
   "main": "dist/index.js",
+  "private": false,
   "bin": {
     "openapi-sdk-gen": "dist/cli.js"
   },

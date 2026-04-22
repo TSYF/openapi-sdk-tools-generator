@@ -55,6 +55,16 @@ export function extractOperations(doc: OasDocument): OperationIR[] {
         }
       }
 
+      // Infer any path params from URL template not declared in spec
+      const declared = new Set(pathParams.map((p) => p.name));
+      for (const match of path.matchAll(/\{(\w+)\}/g)) {
+        const name = match[1];
+        if (!declared.has(name)) {
+          pathParams.push({ name, typeName: "string", required: true });
+          declared.add(name);
+        }
+      }
+
       // Request body
       let bodySchema: string | null = null;
       const requestBody = operation.requestBody;

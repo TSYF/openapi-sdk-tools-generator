@@ -99,10 +99,10 @@ export function generateSdkFile(group: SdkGroupIR, schemaNames: Set<string>): st
 
   for (const op of group.operations) {
     if (op.bodySchema && isSchemaName(op.bodySchema, schemaNames)) {
-      typeImports.add(op.bodySchema);
+      typeImports.add(op.bodySchema.replace(/\[\]$/, ""));
     }
     if (op.responseSchema && isSchemaName(op.responseSchema, schemaNames)) {
-      typeImports.add(op.responseSchema);
+      typeImports.add(op.responseSchema.replace(/\[\]$/, ""));
     }
     errorTypeImports.add(operationErrorTypeName(op.operationId, group.className));
   }
