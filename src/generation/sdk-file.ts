@@ -1,5 +1,9 @@
 import type { OperationIR, SdkGroupIR } from "../extraction/types";
-import { tagToClientClassName, tagToResultClientClassName, toKebab } from "../utils";
+import {
+  tagToClientClassName,
+  tagToResultClientClassName,
+  toKebab,
+} from "../utils";
 import { operationErrorTypeName } from "./errors-file";
 
 /**
@@ -22,6 +26,7 @@ interface MethodSig {
   pathExpr: string;
   optsStr: string;
   errorTypeName: string;
+  errorCodes: string[];
 }
 
 function buildMethodSig(op: OperationIR, groupClassName: string): MethodSig {
@@ -84,10 +89,14 @@ function buildMethodSig(op: OperationIR, groupClassName: string): MethodSig {
     pathExpr: buildPathExpression(op.path),
     optsStr: `{ ${opts.join(", ")} }`,
     errorTypeName: operationErrorTypeName(op.operationId, groupClassName),
+    errorCodes: op.errorCodes,
   };
 }
 
-export function generateSdkFile(group: SdkGroupIR, schemaNames: Set<string>): string {
+export function generateSdkFile(
+  group: SdkGroupIR,
+  schemaNames: Set<string>,
+): string {
   const promiseClass = tagToClientClassName(group.className);
   const resultClass = tagToResultClientClassName(group.className);
 
@@ -104,10 +113,14 @@ export function generateSdkFile(group: SdkGroupIR, schemaNames: Set<string>): st
     if (op.responseSchema && isSchemaName(op.responseSchema, schemaNames)) {
       typeImports.add(op.responseSchema.replace(/\[\]$/, ""));
     }
-    errorTypeImports.add(operationErrorTypeName(op.operationId, group.className));
+    errorTypeImports.add(
+      operationErrorTypeName(op.operationId, group.className),
+    );
   }
 
-  lines.push(`import { SdkBase, SdkResultAsync, type ClientOptions } from './base';`);
+  lines.push(
+    `import { SdkBase, SdkResultAsync, type ClientOptions } from './base';`,
+  );
   if (typeImports.size > 0) {
     lines.push(
       `import type { ${[...typeImports].sort().join(", ")} } from '../interfaces';`,
@@ -120,7 +133,9 @@ export function generateSdkFile(group: SdkGroupIR, schemaNames: Set<string>): st
   }
   lines.push("");
 
-  const sigs = group.operations.map((op) => buildMethodSig(op, group.className));
+  const sigs = group.operations.map((op) =>
+    buildMethodSig(op, group.className),
+  );
 
   // ── Promise class (throws on error)
   lines.push(`export class ${promiseClass} extends SdkBase {`);
@@ -149,8 +164,13 @@ export function generateSdkFile(group: SdkGroupIR, schemaNames: Set<string>): st
       `  ${sig.operationId}(${sig.paramsStr}): SdkResultAsync<${sig.returnType}, ${sig.errorTypeName}> {`,
     );
     lines.push(
-      `    return this.typedRequest<${sig.returnType}, ${sig.errorTypeName}>('${sig.httpVerb}', ${sig.pathExpr}, ${sig.optsStr});`,
+      `    return this.typedRequest<${sig.returnType}, ${sig.errorTypeName}>(`,
     );
+    lines.push(`      '${sig.httpVerb}',`);
+    lines.push(`      ${sig.pathExpr},`);
+    lines.push(`      [${sig.errorCodes.map((c) => `'${c}'`).join(", ")}],`);
+    lines.push(`      ${sig.optsStr}`);
+    lines.push(`    );`);
     lines.push(`  }`);
   }
   lines.push(`}`);
