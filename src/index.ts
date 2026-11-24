@@ -146,8 +146,7 @@ function writeGeneratedPackageJson(outputDir: string, clientName: string) {
       build: "tsc -p tsconfig.json",
     },
     dependencies: {
-      "@openapi-sdk-tools/core": "*",
-      neverthrow: "^8.0.0",
+      "@openapi-sdk-tools/core": "^2.0.0",
     },
     devDependencies: {
       typescript: "^5.5.4",

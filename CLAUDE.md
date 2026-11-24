@@ -10,8 +10,8 @@ CLI tool generating TypeScript SDKs from OpenAPI specs.
 
 ## Generation
 
-- `generation/sdk-base.ts` — Generates `SdkBase<TError>` and `ClientOptions<TError>`
-- `generation/sdk-file.ts` — Generates per-tag client classes
+- `generation/sdk-base.ts` — Generates `SdkBase<TError>` and `ClientOptions<TError>` with `plugins?: SdkPlugin[]`; builds `SdkKernel` and wraps promises through the result backend
+- `generation/sdk-file.ts` — Generates per-tag client classes; promise clients return `Promise<T>` directly, result clients return `SdkResultAsync`
 - `generation/errors-file.ts` — Emits string-literal error code unions
 
 ## Output
@@ -21,4 +21,12 @@ Per-operation error types are string-literal unions:
 export type TicketGetAllErrorCodes = "NOT_FOUND" | "VALIDATION_ERROR" | "INTERNAL_SERVER_ERROR" | ...;
 ```
 
-Generated `typedRequest<T, TCode>` passes declared codes to `SdkResultAsync`.
+Generated `typedRequest<T, TCode>` passes declared codes and the kernel to
+`SdkResultAsync`. Generated packages depend only on
+`@openapi-sdk-tools/core`; no neverthrow dependency is emitted.
+
+## Tests
+
+```bash
+pnpm test   # vitest: generated base/file invariants
+```

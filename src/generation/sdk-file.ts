@@ -145,12 +145,8 @@ export function generateSdkFile(
       `  async ${sig.operationId}(${sig.paramsStr}): Promise<${sig.returnType}> {`,
     );
     lines.push(
-      `    return this.request<${sig.returnType}>('${sig.httpVerb}', ${sig.pathExpr}, ${sig.optsStr})`,
+      `    return this.request<${sig.returnType}>('${sig.httpVerb}', ${sig.pathExpr}, ${sig.optsStr});`,
     );
-    lines.push(`      .match(`);
-    lines.push(`        (v) => v,`);
-    lines.push(`        (e) => { throw e; },`);
-    lines.push(`      );`);
     lines.push(`  }`);
   }
   lines.push(`}`);
